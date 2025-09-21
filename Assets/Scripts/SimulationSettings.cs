@@ -45,7 +45,7 @@ public static class SimulationSettings
     /// <summary>
     /// 球体运动速度 - 控制球体沿x轴的移动速度
     /// </summary>
-    public static float sphereSpeed = 2.0f;
+    public static float sphereSpeed = 6.0f;
     
     /// <summary>
     /// 球体运动范围 - 控制球体在x轴上的移动范围

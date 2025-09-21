@@ -26,6 +26,7 @@ Shader "Unlit/ClothRender"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float4x4 _ModelMatrix;
 
             struct clothData
             {
@@ -37,7 +38,9 @@ Shader "Unlit/ClothRender"
             v2f vert(uint id : SV_VertexID)
             {
                 v2f o;
-                o.pos = UnityObjectToClipPos(float4(_clothDataBuffer[id].position, 1.0f));
+                // 先应用模型矩阵将本地坐标转换为世界坐标，再转换为裁剪坐标
+                float4 worldPos = mul(_ModelMatrix, float4(_clothDataBuffer[id].position, 1.0f));
+                o.pos = UnityObjectToClipPos(worldPos);
                 return o;
             }
 
