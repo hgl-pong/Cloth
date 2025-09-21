@@ -1,4 +1,4 @@
-Shader "Unlit/mainShader"
+Shader "Unlit/ClothRender"
 {
     Properties
     {

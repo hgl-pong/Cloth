@@ -3,45 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Mathematics;
 
-public class PARA
-{
-    public static int numIter = 2;
-    public static float kStretch = 0.25f;
-    public static float3 gravity = new float3(0.0f, -0.98f, 0.0f);
-    public static float timeStep = 1.0f / 60.0f;
-    public static float globalDamping = 0.98f;
-    public static float3 ballCenter = new float3(0.0f, -4.0f, 3.0f);
-    public static float ballRadius = 2.0f;
-}
-struct ClothData
+public struct ClothData
 {
     public float3 pos;
 }
-class DistanceConstraint
-{
-    public DistanceConstraint(int i1, int i2, float3 position1, float3 posiiton2, float k_)
-    {
-        index1 = i1;
-        index2 = i2;
 
-        pos1 = position1;
-        pos2 = posiiton2;
 
-        restLength = math.length(pos1 - pos2);
 
-        k = k_;
-        kPrime = 1.0f - math.pow((1.0f - k), 1.0f / PARA.numIter);
-    }
-
-    public int index1;
-    public int index2;
-    float3 pos1;
-    float3 pos2;
-    float k;
-    public float kPrime;
-    public float restLength;
-}
-class Cloth
+public class Cloth
 {
     public float3[] nodePos;
     public float3[] nodeVel;
@@ -54,9 +23,9 @@ class Cloth
 
     public int numNode;
     public int N;
+    
     public Cloth(int N, float3 startPos, float nodeStep, float density)
     {
-
         // it shoule note that j + N * i = index
         this.N = N;
         numNode = N * N;
@@ -122,12 +91,12 @@ class Cloth
                 int index2 = j + 1 + (i + 1) * N;
                 int index3 = j + 1 + i * N;
 
-                var tDisConstraint0 = new DistanceConstraint(index0, index1, nodePos[index0], nodePos[index1], PARA.kStretch);
-                var tDisConstraint1 = new DistanceConstraint(index3, index2, nodePos[index3], nodePos[index2], PARA.kStretch);
-                var tDisConstraint2 = new DistanceConstraint(index1, index2, nodePos[index1], nodePos[index2], PARA.kStretch);
-                var tDisConstraint3 = new DistanceConstraint(index0, index3, nodePos[index0], nodePos[index3], PARA.kStretch);
-                var tDisConstraint4 = new DistanceConstraint(index0, index2, nodePos[index0], nodePos[index2], PARA.kStretch);
-                var tDisConstraint5 = new DistanceConstraint(index1, index3, nodePos[index1], nodePos[index3], PARA.kStretch);
+                var tDisConstraint0 = new DistanceConstraint(index0, index1, nodePos[index0], nodePos[index1], SimulationSettings.kStretch);
+                var tDisConstraint1 = new DistanceConstraint(index3, index2, nodePos[index3], nodePos[index2], SimulationSettings.kStretch);
+                var tDisConstraint2 = new DistanceConstraint(index1, index2, nodePos[index1], nodePos[index2], SimulationSettings.kStretch);
+                var tDisConstraint3 = new DistanceConstraint(index0, index3, nodePos[index0], nodePos[index3], SimulationSettings.kStretch);
+                var tDisConstraint4 = new DistanceConstraint(index0, index2, nodePos[index0], nodePos[index2], SimulationSettings.kStretch);
+                var tDisConstraint5 = new DistanceConstraint(index1, index3, nodePos[index1], nodePos[index3], SimulationSettings.kStretch);
 
                 disConstraintList.Add(tDisConstraint0);
                 disConstraintList.Add(tDisConstraint1);
@@ -180,7 +149,7 @@ class Cloth
     public void updateStep(float3 ballPos)
     {
         calculateGravity();
-        for (int i = 0; i < PARA.numIter; i++)
+        for (int i = 0; i < SimulationSettings.numIter; i++)
         {
             updateConstraints();
         }
@@ -196,14 +165,14 @@ class Cloth
 
             if (nodeInvMass[i] > 0)
             {
-                nodeForce[i] += PARA.gravity * nodeMass[i];
+                nodeForce[i] += SimulationSettings.gravity * nodeMass[i];
             }
         }
 
         for (int i = 0; i < numNode; i++)
         {
-            nodeVel[i] *= PARA.globalDamping;
-            nodeVel[i] = nodeVel[i] + (nodeForce[i] * nodeInvMass[i] * PARA.timeStep);
+            nodeVel[i] *= SimulationSettings.globalDamping;
+            nodeVel[i] = nodeVel[i] + (nodeForce[i] * nodeInvMass[i] * SimulationSettings.timeStep);
         }
 
         for (int i = 0; i < numNode; i++)
@@ -214,7 +183,7 @@ class Cloth
             }
             else
             {
-                nodePredPos[i] = nodePos[i] + (nodeVel[i] * PARA.timeStep);
+                nodePredPos[i] = nodePos[i] + (nodeVel[i] * SimulationSettings.timeStep);
             }
         }
     }
@@ -223,21 +192,7 @@ class Cloth
     {
         foreach (DistanceConstraint tConstraint in disConstraintList)
         {
-            int index1 = tConstraint.index1;
-            int index2 = tConstraint.index2;
-
-            float3 dirVec = nodePredPos[index1] - nodePredPos[index2];
-            float len = math.length(dirVec);
-
-            float w1 = nodeInvMass[index1];
-            float w2 = nodeInvMass[index2];
-
-            float3 dP = (1.0f / (w1 + w2)) * (len - tConstraint.restLength) * (dirVec / len) * tConstraint.kPrime;
-
-            if (w1 > 0.0f)
-                nodePredPos[index1] -= dP * w1;
-            if (w2 > 0.0f)
-                nodePredPos[index2] += dP * w2;
+            ConstraintSolver.SolveDistanceConstraint(tConstraint, ref nodePredPos, nodeInvMass);
         }
     }
 
@@ -248,77 +203,20 @@ class Cloth
             float3 gapVec = nodePredPos[i] - ballPos;
             float gapLen = math.length(gapVec);
 
-            if (gapLen < PARA.ballRadius)
+            if (gapLen < SimulationSettings.ballRadius)
             {
-                nodePredPos[i] += math.normalize(gapVec) * (PARA.ballRadius - gapLen);
+                nodePredPos[i] += math.normalize(gapVec) * (SimulationSettings.ballRadius - gapLen);
                 nodePos[i] = nodePredPos[i];
             }
         }
     }
+    
     void integrate()
     {
         for (int i = 0; i < numNode; i++)
         {
-            nodeVel[i] = (nodePredPos[i] - nodePos[i]) / PARA.timeStep;
+            nodeVel[i] = (nodePredPos[i] - nodePos[i]) / SimulationSettings.timeStep;
             nodePos[i] = nodePredPos[i];
         }
-    }
-}
-public class dispathcer : MonoBehaviour
-{
-    // Start is called before the first frame update
-    int N;
-    bool flag = false;
-
-    ClothData[] dataForDraw; // (N-1) * (N-1) * 12
-    ComputeBuffer cBufferDataForDraw;
-    Cloth cloth;
-    GameObject sphere;
-
-    public Material mainMaterial;
-    void Start()
-    {
-        sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        sphere.transform.parent = this.transform;
-        sphere.transform.position = new Vector3(PARA.ballCenter.x, PARA.ballCenter.y, PARA.ballCenter.z);
-        sphere.transform.localScale = new Vector3(PARA.ballRadius * 2.0f, PARA.ballRadius * 2.0f, PARA.ballRadius * 2.0f);
-
-        cloth = new Cloth(32, new float3(0.0f, 0.0f, 0.0f), 0.2f, 1.0f);
-
-        N = cloth.N;
-
-        dataForDraw = new ClothData[(N - 1) * (N - 1) * 12];
-        dataForDraw = cloth.getColthDrawData();
-
-        cBufferDataForDraw = new ComputeBuffer((N - 1) * (N - 1) * 12, 12);
-        cBufferDataForDraw.SetData(dataForDraw, 0, 0, (N - 1) * (N - 1) * 12);
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (Input.GetKeyUp(KeyCode.Space))
-        {
-            flag = true;
-        }
-        if (flag)
-        {
-            //flag = false;
-            cloth.updateStep(sphere.transform.position);
-            dataForDraw = cloth.getColthDrawData();
-            cBufferDataForDraw.SetData(dataForDraw, 0, 0, (N - 1) * (N - 1) * 12);
-        }
-    }
-    private void OnRenderObject()
-    {
-        mainMaterial.SetBuffer("_clothDataBuffer", cBufferDataForDraw);
-        mainMaterial.SetPass(0);
-        Graphics.DrawProceduralNow(MeshTopology.Lines, (cloth.N - 1) * (cloth.N - 1) * 12);
-    }
-
-    private void OnDestroy()
-    {
-        if (cBufferDataForDraw != null)
-            cBufferDataForDraw.Release();
     }
 }
