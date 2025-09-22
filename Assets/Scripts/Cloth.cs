@@ -18,7 +18,7 @@ public class Cloth
     public float3[] nodeForce;
     public float[] nodeMass;
     public float[] nodeInvMass;
-    public List<DistanceConstraint> disConstraintList;
+    public List<IConstraint> constraintList;
     ClothData[] dataForDraw;
 
     public int numNode;
@@ -81,7 +81,7 @@ public class Cloth
         nodeInvMass[N - 1] = 0.0f;
 
         // now we add distance constraints
-        disConstraintList = new List<DistanceConstraint>();
+        constraintList = new List<IConstraint>();
         for (int i = 0; i < N - 1; i++)
         {
             for (int j = 0; j < N - 1; j++)
@@ -98,14 +98,50 @@ public class Cloth
                 var tDisConstraint4 = new DistanceConstraint(index0, index2, nodePos[index0], nodePos[index2], SimulationSettings.kStretch);
                 var tDisConstraint5 = new DistanceConstraint(index1, index3, nodePos[index1], nodePos[index3], SimulationSettings.kStretch);
 
-                disConstraintList.Add(tDisConstraint0);
-                disConstraintList.Add(tDisConstraint1);
-                disConstraintList.Add(tDisConstraint2);
-                disConstraintList.Add(tDisConstraint3);
-                disConstraintList.Add(tDisConstraint4);
-                disConstraintList.Add(tDisConstraint5);
+                constraintList.Add(tDisConstraint0);
+                constraintList.Add(tDisConstraint1);
+                constraintList.Add(tDisConstraint2);
+                constraintList.Add(tDisConstraint3);
+                constraintList.Add(tDisConstraint4);
+                constraintList.Add(tDisConstraint5);
             }
         }
+
+        // now we add spring constraints
+        // if (SimulationSettings.kSpring > 0.0f)
+        // {
+        //     for (int i = 0; i < N; i++)
+        //     {
+        //         for (int j = 0; j < N; j++)
+        //         {
+        //             int index = j + i * N;
+
+        //             if (i + 2 < N)
+        //             {
+        //                 int indexDown = j + (i + 2) * N;
+        //                 constraintList.Add(new SpringConstraint(index, indexDown, nodePos[index], nodePos[indexDown], SimulationSettings.kSpring));
+        //             }
+
+        //             if (j + 2 < N)
+        //             {
+        //                 int indexRight = j + 2 + i * N;
+        //                 constraintList.Add(new SpringConstraint(index, indexRight, nodePos[index], nodePos[indexRight], SimulationSettings.kSpring));
+        //             }
+
+        //             if (i + 2 < N && j + 2 < N)
+        //             {
+        //                 int indexDiag = j + 2 + (i + 2) * N;
+        //                 constraintList.Add(new SpringConstraint(index, indexDiag, nodePos[index], nodePos[indexDiag], SimulationSettings.kSpring));
+        //             }
+
+        //             if (i + 2 < N && j >= 2)
+        //             {
+        //                 int indexDiagLeft = j - 2 + (i + 2) * N;
+        //                 constraintList.Add(new SpringConstraint(index, indexDiagLeft, nodePos[index], nodePos[indexDiagLeft], SimulationSettings.kSpring));
+        //             }
+        //         }
+        //     }
+        // }
 
         // now init the size of cloth data
         dataForDraw = new ClothData[(N - 1) * (N - 1) * 12];
@@ -190,9 +226,9 @@ public class Cloth
 
     void updateConstraints()
     {
-        foreach (DistanceConstraint tConstraint in disConstraintList)
+        foreach (IConstraint constraint in constraintList)
         {
-            ConstraintSolver.SolveDistanceConstraint(tConstraint, ref nodePredPos, nodeInvMass);
+            constraint.Solve(ref nodePredPos, nodeInvMass);
         }
     }
 

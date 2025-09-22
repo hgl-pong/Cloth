@@ -16,6 +16,12 @@ public static class SimulationSettings
     /// 拉伸刚度系数 - 控制布料的拉伸阻力
     /// </summary>
     public static float kStretch = 0.25f;
+
+    /// <summary>
+    /// 弹簧刚度系数 - 控制布料的弯曲弹性
+    /// </summary>
+    public static float kSpring = 0.1f;
+
     
     /// <summary>
     /// 重力向量 - 影响布料下垂的方向和强度
