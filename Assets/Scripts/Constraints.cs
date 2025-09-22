@@ -93,3 +93,55 @@ public class SpringConstraint : IConstraint
     }
 }
 
+
+
+/// <summary>
+/// Enforces a minimum separation distance between non-neighbouring nodes.
+/// </summary>
+public class SelfCollisionConstraint : IConstraint
+{
+    public SelfCollisionConstraint(int i1, int i2, float separationRadius, float stiffness)
+    {
+        index1 = i1;
+        index2 = i2;
+
+        radius = math.max(separationRadius, 0.0f);
+
+        k = math.clamp(stiffness, 0.0f, 1.0f);
+        kPrime = 1.0f - math.pow(1.0f - k, 1.0f / SimulationSettings.numIter);
+    }
+
+    public int index1;
+    public int index2;
+    public float radius;
+    float k;
+    public float kPrime;
+
+    public void Solve(ref float3[] nodePredPos, float[] nodeInvMass)
+    {
+        if (radius <= 0.0f)
+            return;
+
+        float3 dirVec = nodePredPos[index1] - nodePredPos[index2];
+        float len = math.length(dirVec);
+        if (len < 1e-6f)
+            return;
+
+        if (len >= radius)
+            return;
+
+        float w1 = nodeInvMass[index1];
+        float w2 = nodeInvMass[index2];
+        float wSum = w1 + w2;
+        if (wSum <= 0.0f)
+            return;
+
+        float penetration = radius - len;
+        float3 correction = (penetration / wSum) * (dirVec / len) * kPrime;
+
+        if (w1 > 0.0f)
+            nodePredPos[index1] += correction * w1;
+        if (w2 > 0.0f)
+            nodePredPos[index2] -= correction * w2;
+    }
+}

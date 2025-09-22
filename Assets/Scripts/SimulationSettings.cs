@@ -18,6 +18,26 @@ public static class SimulationSettings
     public static float kStretch = 0.25f;
 
     /// <summary>
+    /// Self-collision stiffness - controls how strongly overlapping nodes are separated
+    /// </summary>
+    public static float kSelfCollision = 0.5f;
+
+    /// <summary>
+    /// Self-collision radius - minimum allowed distance between non-neighbouring nodes
+    /// </summary>
+    public static float selfCollisionRadius = 0.15f;
+
+    /// <summary>
+    /// Maximum self-collision pairs to evaluate per iteration (0 for no limit)
+    /// </summary>
+    public static int maxSelfCollisionPairs = 4096;
+
+    /// <summary>
+    /// Self-collision partition type - selects the acceleration data structure
+    /// </summary>
+    public static SelfCollisionPartitionType selfCollisionPartitionType = SelfCollisionPartitionType.UniformGrid;
+
+    /// <summary>
     /// 弹簧刚度系数 - 控制布料的弯曲弹性
     /// </summary>
     public static float kSpring = 0.1f;

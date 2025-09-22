@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Mathematics;
@@ -6,10 +6,8 @@ using Unity.Mathematics;
 public struct ClothData
 {
     public float3 pos;
-}
-
-
-
+}
+
 public class Cloth
 {
     public float3[] nodePos;
@@ -19,6 +17,10 @@ public class Cloth
     public float[] nodeMass;
     public float[] nodeInvMass;
     public List<IConstraint> constraintList;
+    List<SelfCollisionConstraint> selfCollisionConstraints;
+    ISelfCollisionAccelerator selfCollisionAccelerator;
+    List<NodePair> selfCollisionCandidates;
+    SelfCollisionPartitionType currentAcceleratorType;
     ClothData[] dataForDraw;
 
     public int numNode;
@@ -82,6 +84,10 @@ public class Cloth
 
         // now we add distance constraints
         constraintList = new List<IConstraint>();
+        selfCollisionConstraints = new List<SelfCollisionConstraint>();
+        selfCollisionCandidates = new List<NodePair>();
+        currentAcceleratorType = SimulationSettings.selfCollisionPartitionType;
+        selfCollisionAccelerator = SelfCollisionAcceleratorFactory.Create(currentAcceleratorType);
         for (int i = 0; i < N - 1; i++)
         {
             for (int j = 0; j < N - 1; j++)
@@ -108,40 +114,40 @@ public class Cloth
         }
 
         // now we add spring constraints
-        // if (SimulationSettings.kSpring > 0.0f)
-        // {
-        //     for (int i = 0; i < N; i++)
-        //     {
-        //         for (int j = 0; j < N; j++)
-        //         {
-        //             int index = j + i * N;
+        if (SimulationSettings.kSpring > 0.0f)
+        {
+            for (int i = 0; i < N; i++)
+            {
+                for (int j = 0; j < N; j++)
+                {
+                    int index = j + i * N;
 
-        //             if (i + 2 < N)
-        //             {
-        //                 int indexDown = j + (i + 2) * N;
-        //                 constraintList.Add(new SpringConstraint(index, indexDown, nodePos[index], nodePos[indexDown], SimulationSettings.kSpring));
-        //             }
+                    if (i + 2 < N)
+                    {
+                        int indexDown = j + (i + 2) * N;
+                        constraintList.Add(new SpringConstraint(index, indexDown, nodePos[index], nodePos[indexDown], SimulationSettings.kSpring));
+                    }
 
-        //             if (j + 2 < N)
-        //             {
-        //                 int indexRight = j + 2 + i * N;
-        //                 constraintList.Add(new SpringConstraint(index, indexRight, nodePos[index], nodePos[indexRight], SimulationSettings.kSpring));
-        //             }
+                    if (j + 2 < N)
+                    {
+                        int indexRight = j + 2 + i * N;
+                        constraintList.Add(new SpringConstraint(index, indexRight, nodePos[index], nodePos[indexRight], SimulationSettings.kSpring));
+                    }
 
-        //             if (i + 2 < N && j + 2 < N)
-        //             {
-        //                 int indexDiag = j + 2 + (i + 2) * N;
-        //                 constraintList.Add(new SpringConstraint(index, indexDiag, nodePos[index], nodePos[indexDiag], SimulationSettings.kSpring));
-        //             }
+                    if (i + 2 < N && j + 2 < N)
+                    {
+                        int indexDiag = j + 2 + (i + 2) * N;
+                        constraintList.Add(new SpringConstraint(index, indexDiag, nodePos[index], nodePos[indexDiag], SimulationSettings.kSpring));
+                    }
 
-        //             if (i + 2 < N && j >= 2)
-        //             {
-        //                 int indexDiagLeft = j - 2 + (i + 2) * N;
-        //                 constraintList.Add(new SpringConstraint(index, indexDiagLeft, nodePos[index], nodePos[indexDiagLeft], SimulationSettings.kSpring));
-        //             }
-        //         }
-        //     }
-        // }
+                    if (i + 2 < N && j >= 2)
+                    {
+                        int indexDiagLeft = j - 2 + (i + 2) * N;
+                        constraintList.Add(new SpringConstraint(index, indexDiagLeft, nodePos[index], nodePos[indexDiagLeft], SimulationSettings.kSpring));
+                    }
+                }
+            }
+        }
 
         // now init the size of cloth data
         dataForDraw = new ClothData[(N - 1) * (N - 1) * 12];
@@ -187,6 +193,7 @@ public class Cloth
         calculateGravity();
         for (int i = 0; i < SimulationSettings.numIter; i++)
         {
+            rebuildSelfCollisionConstraints();
             updateConstraints();
         }
         collisionDetect(ballPos);
@@ -230,8 +237,47 @@ public class Cloth
         {
             constraint.Solve(ref nodePredPos, nodeInvMass);
         }
-    }
 
+        foreach (SelfCollisionConstraint constraint in selfCollisionConstraints)
+        {
+            constraint.Solve(ref nodePredPos, nodeInvMass);
+        }
+    }
+
+    void rebuildSelfCollisionConstraints()
+    {
+        selfCollisionConstraints.Clear();
+
+        float radius = SimulationSettings.selfCollisionRadius;
+        float stiffness = SimulationSettings.kSelfCollision;
+        if (radius <= 0.0f || stiffness <= 0.0f)
+            return;
+
+        int maxPairs = math.max(0, SimulationSettings.maxSelfCollisionPairs);
+
+        if (selfCollisionAccelerator == null || SimulationSettings.selfCollisionPartitionType != currentAcceleratorType)
+        {
+            currentAcceleratorType = SimulationSettings.selfCollisionPartitionType;
+            selfCollisionAccelerator = SelfCollisionAcceleratorFactory.Create(currentAcceleratorType);
+        }
+
+        selfCollisionAccelerator.Build(nodePredPos, radius);
+
+        if (selfCollisionCandidates == null)
+            selfCollisionCandidates = new List<NodePair>();
+
+        selfCollisionAccelerator.CollectPairs(nodePredPos, radius, nodeInvMass, N, maxPairs, selfCollisionCandidates);
+
+        for (int i = 0; i < selfCollisionCandidates.Count; i++)
+        {
+            if (maxPairs > 0 && selfCollisionConstraints.Count >= maxPairs)
+                break;
+
+            NodePair pair = selfCollisionCandidates[i];
+            selfCollisionConstraints.Add(new SelfCollisionConstraint(pair.indexA, pair.indexB, radius, stiffness));
+        }
+    }
+
     void collisionDetect(float3 ballPos)
     {
         for (int i = 0; i < numNode; i++)
@@ -255,4 +301,6 @@ public class Cloth
             nodePos[i] = nodePredPos[i];
         }
     }
-}
+}
+
+
