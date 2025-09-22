@@ -38,6 +38,21 @@ public static class SimulationSettings
     public static SelfCollisionPartitionType selfCollisionPartitionType = SelfCollisionPartitionType.UniformGrid;
 
     /// <summary>
+    /// Self-collision hash cell scale - multiplier applied to the collision radius when computing hash cell size
+    /// </summary>
+    public static float selfCollisionHashCellScale = 1.0f;
+
+    /// <summary>
+    /// Self-collision multi-hash levels - number of spatial hash levels to evaluate (>= 1)
+    /// </summary>
+    public static int selfCollisionMultiHashLevels = 3;
+
+    /// <summary>
+    /// Self-collision multi-hash scale - growth factor between successive hash levels
+    /// </summary>
+    public static float selfCollisionMultiHashScale = 2.0f;
+
+    /// <summary>
     /// 弹簧刚度系数 - 控制布料的弯曲弹性
     /// </summary>
     public static float kSpring = 0.1f;
