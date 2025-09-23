@@ -23,7 +23,7 @@ public static class SimulationSettings
     public static int selfCollisionMultiHashLevels = 3;
     public static float selfCollisionMultiHashScale = 2.0f;
 
-    // Mass-spring parameters
+    // Mass-spring configuration
     public static float massSpringStructuralK = 600.0f;
     public static float massSpringShearK = 600.0f;
     public static float massSpringBendK = 300.0f;

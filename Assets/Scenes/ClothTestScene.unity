@@ -363,6 +363,7 @@ MonoBehaviour:
   clothResolution: 32
   clothNodeStep: 0.2
   clothDensity: 1
+  integrationMethod: 1
   mainMaterial: {fileID: 2100000, guid: d581a65e1c643564e9321bcd9ac6460f, type: 2}
 --- !u!4 &947327454
 Transform:
@@ -412,6 +413,7 @@ MonoBehaviour:
   clothResolution: 32
   clothNodeStep: 0.2
   clothDensity: 1
+  integrationMethod: 1
   mainMaterial: {fileID: 2100000, guid: d581a65e1c643564e9321bcd9ac6460f, type: 2}
 --- !u!4 &1722104687
 Transform:
