@@ -359,6 +359,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 879536034c486174ebb54e6ef5233b5b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  clothType: 1
+  clothResolution: 32
+  clothNodeStep: 0.2
+  clothDensity: 1
   mainMaterial: {fileID: 2100000, guid: d581a65e1c643564e9321bcd9ac6460f, type: 2}
 --- !u!4 &947327454
 Transform:
@@ -404,6 +408,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 879536034c486174ebb54e6ef5233b5b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  clothType: 0
+  clothResolution: 32
+  clothNodeStep: 0.2
+  clothDensity: 1
   mainMaterial: {fileID: 2100000, guid: d581a65e1c643564e9321bcd9ac6460f, type: 2}
 --- !u!4 &1722104687
 Transform:

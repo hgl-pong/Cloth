@@ -8,9 +8,16 @@ public class ClothTestUnit : MonoBehaviour
     int N;
     bool flag = true;
 
+    [Header("Cloth Setup")]
+    [SerializeField] ClothSimulationType clothType = ClothSimulationType.PBD;
+    [SerializeField, Min(2)] int clothResolution = 32;
+    [SerializeField, Min(0.01f)] float clothNodeStep = 0.2f;
+    [SerializeField, Min(0.001f)] float clothDensity = 1.0f;
+        [SerializeField] ClothIntegrationMethod integrationMethod = SimulationSettings.massSpringIntegrationMethod;
+
     ClothData[] dataForDraw; // (N-1) * (N-1) * 12
     ComputeBuffer cBufferDataForDraw;
-    Cloth cloth;
+    ICloth cloth;
     GameObject sphere;
 
     // Sphere运动相关变量
@@ -33,12 +40,15 @@ public class ClothTestUnit : MonoBehaviour
 
         // 使用本地坐标系初始化布料（相对于ClothTestUnit的原点）
         float3 clothStartPos = new float3(0.0f, 0.0f, 0.0f);
-        cloth = new Cloth(32, clothStartPos, 0.2f, 1.0f);
+        int resolvedResolution = clothResolution > 1 ? clothResolution : SimulationSettings.clothResolution;
+        float resolvedNodeStep = clothNodeStep > 0.0f ? clothNodeStep : SimulationSettings.clothNodeStep;
+        float resolvedDensity = clothDensity > 0.0f ? clothDensity : SimulationSettings.clothDensity;
+        cloth = ClothFactory.CreateCloth(clothType, resolvedResolution, clothStartPos, resolvedNodeStep, resolvedDensity, integrationMethod);
 
-        N = cloth.N;
+        N = cloth.Resolution;
 
         dataForDraw = new ClothData[(N - 1) * (N - 1) * 12];
-        dataForDraw = cloth.getColthDrawData();
+        dataForDraw = cloth.GetClothDrawData();
 
         cBufferDataForDraw = new ComputeBuffer((N - 1) * (N - 1) * 12, 12);
         cBufferDataForDraw.SetData(dataForDraw, 0, 0, (N - 1) * (N - 1) * 12);
@@ -60,8 +70,8 @@ public class ClothTestUnit : MonoBehaviour
             // 直接使用本地坐标传递给物理模拟
             float3 ballPosForPhysics = new float3(sphere.transform.localPosition.x, sphere.transform.localPosition.y, sphere.transform.localPosition.z);
             
-            cloth.updateStep(ballPosForPhysics);
-            dataForDraw = cloth.getColthDrawData();
+            cloth.UpdateStep(ballPosForPhysics);
+            dataForDraw = cloth.GetClothDrawData();
             cBufferDataForDraw.SetData(dataForDraw, 0, 0, (N - 1) * (N - 1) * 12);
         }
     }
@@ -99,7 +109,7 @@ public class ClothTestUnit : MonoBehaviour
         mainMaterial.SetMatrix("_ModelMatrix", modelMatrix);
         mainMaterial.SetBuffer("_clothDataBuffer", cBufferDataForDraw);
         mainMaterial.SetPass(0);
-        Graphics.DrawProceduralNow(MeshTopology.Lines, (cloth.N - 1) * (cloth.N - 1) * 12);
+        Graphics.DrawProceduralNow(MeshTopology.Lines, (cloth.Resolution - 1) * (cloth.Resolution - 1) * 12);
     }
 
     private void OnDestroy()
@@ -107,4 +117,13 @@ public class ClothTestUnit : MonoBehaviour
         if (cBufferDataForDraw != null)
             cBufferDataForDraw.Release();
     }
+
+
+    void OnValidate()
+    {
+        clothResolution = math.max(clothResolution, 2);
+        clothNodeStep = math.max(0.001f, clothNodeStep);
+        clothDensity = math.max(0.0001f, clothDensity);
+    }
+
 }
